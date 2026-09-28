@@ -1,8 +1,10 @@
 const cors = require('cors')
 const express = require('express')
+const { apiReference } = require('@scalar/express-api-reference')
 const { corsOptions } = require('./config/cors')
 const { port } = require('./config/environment')
 const errorHandler = require('./config/errorHandler')
+const openApiSpec = require('./config/openapi.json')
 const applicationRoutes = require('./routes/applicationRoutes')
 const applyRoutes = require('./routes/applyRoutes')
 const authRoutes = require('./routes/authRoutes')
@@ -20,6 +22,15 @@ app.use((req, res, next) => {
 app.use(cors(corsOptions))
 app.use(express.json())
 app.options(/.*/, cors(corsOptions))
+
+app.get('/openapi.json', (request, response) => {
+  response.json(openApiSpec)
+})
+
+app.use('/docs', apiReference({
+  content: openApiSpec,
+  theme: 'purple',
+}))
 
 app.get('/api/health', (request, response) => {
   response.status(200).json({ status: 'ok', service: 'jobapply-api' })
@@ -42,6 +53,7 @@ app.use(errorHandler)
 if (require.main === module) {
   app.listen(port, () => {
     console.log(`JobApply API listening on http://localhost:${port}`)
+    console.log(`API Docs available at http://localhost:${port}/docs`)
   })
 }
 

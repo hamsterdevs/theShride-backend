@@ -7,7 +7,7 @@ async function generateCoverLetter({ jobUrl, jobDescription, candidateProfile, a
     throw error
   }
 
-  const modelName = `models/${(process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim().replace(/^models\//, '')}`
+  const modelName = `models/${(process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/^models\//, '')}`
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
   const response = await ai.models.generateContent({
     model: modelName,
