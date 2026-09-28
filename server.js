@@ -1,6 +1,5 @@
 const cors = require('cors')
 const express = require('express')
-const { apiReference } = require('@scalar/express-api-reference')
 const { corsOptions } = require('./config/cors')
 const { port } = require('./config/environment')
 const errorHandler = require('./config/errorHandler')
@@ -27,10 +26,17 @@ app.get('/openapi.json', (request, response) => {
   response.json(openApiSpec)
 })
 
-app.use('/docs', apiReference({
-  content: openApiSpec,
-  theme: 'purple',
-}))
+app.use('/docs', async (request, response, next) => {
+  try {
+    const { apiReference } = await import('@scalar/express-api-reference')
+    return apiReference({
+      spec: { content: openApiSpec },
+      theme: 'purple',
+    })(request, response, next)
+  } catch (error) {
+    return next(error)
+  }
+})
 
 app.get('/api/health', (request, response) => {
   response.status(200).json({ status: 'ok', service: 'jobapply-api' })
