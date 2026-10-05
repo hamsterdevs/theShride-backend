@@ -29,11 +29,11 @@ async function parseResume(file) {
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-  // Define valid primary and fallback models
+  // Primary model and active stable fallback model
   const primaryModel = `models/${(process.env.GEMINI_MODEL || "gemini-2.5-flash")
     .trim()
     .replace(/^models\//, "")}`;
-  const fallbackModel = "models/gemini-2.5-flash-lite";
+  const fallbackModel = "models/gemini-1.5-flash";
 
   const config = {
     systemInstruction: `Extract candidate details from this resume into JSON: { name, email, phone, title, skills: [], summary, yearsOfExperience }.
@@ -89,7 +89,7 @@ Strictly extract only facts explicitly stated in the resume text. Do NOT assume 
             `[Gemini] ${modelToUse} 503 overloaded. Retrying in ${delay}ms (Attempt ${attempt}/${retries})...`
           );
           await new Promise((res) => setTimeout(res, delay));
-          delay *= 2; // Double delay for backoff
+          delay *= 2;
         } else {
           throw err;
         }
@@ -112,7 +112,7 @@ Strictly extract only facts explicitly stated in the resume text. Do NOT assume 
       console.warn(
         `[Gemini] Primary model (${primaryModel}) failed with 503. Switching to fallback (${fallbackModel})...`
       );
-      // 2. Fall back to Flash-Lite if Primary fails completely
+      // 2. Fall back to gemini-1.5-flash if Primary fails completely
       response = await generateWithRetry(fallbackModel);
     } else {
       throw err;
