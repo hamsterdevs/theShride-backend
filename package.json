@@ -1,0 +1,23 @@
+{
+  "name": "jobapply-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Express API for the JobApply prototype",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.24.0",
+    "@scalar/express-api-reference": "^0.10.23",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "googleapis": "^144.0.0",
+    "mammoth": "^1.12.2",
+    "multer": "^2.0.2",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.13.1"
+  }
+}
