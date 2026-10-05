@@ -1,4 +1,3 @@
-const { GoogleGenAI, Type } = require('@google/genai')
 const { getAuthorizedClientForSession, google } = require('../config/googleOAuth')
 const { getResume } = require('../db/resumes')
 
@@ -67,7 +66,9 @@ async function sendApplicationEmail({ sessionId, to, subject, body, pdfBase64 })
 
 async function parseWithGroq(prompt, jsonSchema) {
   const apiKey = process.env.GROQ_API_KEY || process.env.ROQ_API_KEY;
-  if (!apiKey) throw new Error("GROQ_API_KEY is not configured.");
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY is not configured in environment variables.");
+  }
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -81,7 +82,7 @@ async function parseWithGroq(prompt, jsonSchema) {
       messages: [
         {
           role: "system",
-          content: `You are a professional email assistant. Return a JSON object with subject, body, and recipientEmail matching: ${JSON.stringify(jsonSchema)}`,
+          content: `You are a professional application writer. Output valid JSON matching this schema: ${JSON.stringify(jsonSchema)}`,
         },
         { role: "user", content: prompt },
       ],
@@ -101,64 +102,30 @@ async function draftApplicationEmail({ profile, jobDetails, customTone }) {
   const systemInstruction = 'Compare the candidate profile skills, title, and summary against the job title, key requirements, and company. Generate a concise, impactful professional application email aligned directly to the listed requirements. Do not invent experience, qualifications, employers, or recipient details that are not provided. Return a subject and body. Use the provided recipientEmail exactly when present; otherwise return null.'
   const prompt = `Candidate profile:\n${JSON.stringify(profile)}\n\nJob details:\n${JSON.stringify(jobDetails)}\n\nRequested tone:\n${customTone || 'professional'}`
 
-  // 1. Attempt Gemini First
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const modelName = `models/${(process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/^models\//, '')}`
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          responseJsonSchema: {
-            type: Type.OBJECT,
-            properties: {
-              subject: { type: Type.STRING },
-              body: { type: Type.STRING },
-              recipientEmail: { type: Type.STRING, nullable: true },
-            },
-            required: ['subject', 'body', 'recipientEmail'],
-            additionalProperties: false,
-          },
-        },
-      })
-
-      return JSON.parse(response.text)
-    } catch (error) {
-      console.warn(`[ApplicationService] Gemini failed (${error.message}). Trying Groq fallback...`)
-    }
+  const jsonSchema = {
+    type: "object",
+    properties: {
+      subject: { type: "string" },
+      body: { type: "string" },
+      recipientEmail: { type: "string", nullable: true },
+    },
+    required: ['subject', 'body', 'recipientEmail'],
   }
 
-  // 2. Attempt Groq Fallback
-  if (process.env.GROQ_API_KEY || process.env.ROQ_API_KEY) {
-    try {
-      const jsonSchema = {
-        type: "object",
-        properties: {
-          subject: { type: "string" },
-          body: { type: "string" },
-          recipientEmail: { type: "string", nullable: true },
-        },
-        required: ['subject', 'body', 'recipientEmail'],
-      }
-      return await parseWithGroq(`${systemInstruction}\n\n${prompt}`, jsonSchema)
-    } catch (err) {
-      console.warn(`[ApplicationService] Groq failed (${err.message}). Using template fallback...`)
+  try {
+    return await parseWithGroq(`${systemInstruction}\n\n${prompt}`, jsonSchema)
+  } catch (error) {
+    console.warn(`[ApplicationService] Groq failed (${error.message}). Returning template fallback...`)
+    const skills = Array.isArray(profile.skills) ? profile.skills : []
+    const fallbackSubject = `Application for ${jobDetails.jobTitle || 'Role'} - ${profile.name || 'Candidate'}`
+    const fallbackBody = `Dear Hiring Manager,\n\nI am writing to express my interest in the ${jobDetails.jobTitle || 'Role'} position at ${jobDetails.companyOrIndustry || 'your company'}.\n\nWith experience as a ${profile.title || 'professional'} and a strong background in ${skills.slice(0, 5).join(', ')}, I am confident in my ability to contribute effectively to your team.\n\nSummary of Qualifications:\n${profile.summary || 'N/A'}\n\nThank you for considering my application. I look forward to the opportunity to discuss my experience further.\n\nBest regards,\n${profile.name || 'Candidate'}\n${profile.email || 'N/A'} | ${profile.phone || 'N/A'}`
+
+    return {
+      subject: fallbackSubject,
+      body: fallbackBody,
+      recipientEmail: jobDetails.recipientEmail || null,
+      isFallback: true,
     }
-  }
-
-  // 3. Fallback Template
-  const skills = Array.isArray(profile.skills) ? profile.skills : []
-  const fallbackSubject = `Application for ${jobDetails.jobTitle || 'Role'} - ${profile.name || 'Candidate'}`
-  const fallbackBody = `Dear Hiring Manager,\n\nI am writing to express my interest in the ${jobDetails.jobTitle || 'Role'} position at ${jobDetails.companyOrIndustry || 'your company'}.\n\nWith experience as a ${profile.title || 'professional'} and a strong background in ${skills.slice(0, 5).join(', ')}, I am confident in my ability to contribute effectively to your team.\n\nSummary of Qualifications:\n${profile.summary || 'N/A'}\n\nThank you for considering my application. I look forward to the opportunity to discuss my experience further.\n\nBest regards,\n${profile.name || 'Candidate'}\n${profile.email || 'N/A'} | ${profile.phone || 'N/A'}`
-
-  return {
-    subject: fallbackSubject,
-    body: fallbackBody,
-    recipientEmail: jobDetails.recipientEmail || null,
-    isFallback: true,
   }
 }
 
