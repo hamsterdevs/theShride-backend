@@ -31,14 +31,20 @@ function sanitizeHeader(value) {
   return value.replace(/[\r\n]/g, ' ').trim()
 }
 
+function encodeHeaderValue(value) {
+  if (/^[\x00-\x7F]*$/.test(value)) return value
+  return `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`
+}
+
 async function sendApplicationEmail({ sessionId, to, subject, body, pdfBase64 }) {
   const attachment = await getResumeAttachment(sessionId, pdfBase64)
-  const attachmentName = sanitizeHeader(attachment.fileName)
+  const attachmentName =
+    sanitizeHeader(attachment.fileName).replace(/[^\x20-\x7E]/g, '') || 'resume.pdf'
   const boundary = `application-${Date.now()}`
   const rawMime = [
     'From: me',
     `To: ${sanitizeHeader(to)}`,
-    `Subject: ${sanitizeHeader(subject)}`,
+    `Subject: ${encodeHeaderValue(sanitizeHeader(subject))}`,
     'MIME-Version: 1.0',
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     '',

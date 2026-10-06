@@ -38,6 +38,14 @@ const ready = pool
       parsed_profile  TEXT,
       uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS waitlist_signups (
+      id          SERIAL PRIMARY KEY,
+      email       TEXT NOT NULL UNIQUE,
+      source      TEXT,
+      session_id  TEXT REFERENCES sessions(id) ON DELETE SET NULL,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `)
   .then(() => console.log('[db] Schema ready.'))
   .catch((error) => {

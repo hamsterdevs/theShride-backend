@@ -11,6 +11,7 @@ const authRoutes = require('./routes/authRoutes')
 const jobRoutes = require('./routes/jobRoutes')
 const resumeRoutes = require('./routes/resumeRoutes')
 const sessionRoutes = require('./routes/sessionRoutes')
+const waitlistRoutes = require('./routes/waitlistRoutes')
 
 const app = express()
 
@@ -54,6 +55,7 @@ app.use('/api/jobs', jobRoutes)
 app.use('/api/resume', resumeRoutes)
 app.use('/api/apply', applyRoutes)
 app.use('/api/session', sessionRoutes)
+app.use('/api/waitlist', waitlistRoutes)
 
 // 2. Catch-all 404 Route Logger
 app.use((req, res) => {
